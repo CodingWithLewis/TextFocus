@@ -26,7 +26,7 @@ test_images/
 *.gif
 *.bmp
 *.tiff
-
+!docs/example.gif
 # OS files
 .DS_Store
 Thumbs.db
