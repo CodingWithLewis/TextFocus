@@ -4,7 +4,7 @@ A Python tool that automatically aligns and centers specific words in images usi
 
 Perfect for creating that "busy" effect in documentary-style videos.
 
-![Final result (with effects from After Effects)]("./docs/example.gif)
+![Final result (with effects from After Effects)](docs/example.gif)
 
 ## Features
 
