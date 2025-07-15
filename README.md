@@ -1,6 +1,12 @@
 # Quick Cuts
 
-A Python tool that automatically aligns and centers specific words in images using OCR, perfect for creating consistent video cuts in editing software like Adobe Premiere.
+A Python tool that automatically aligns and centers specific words in images using OCR.
+
+Perfect for creating that "busy" effect in documentary-style videos.
+
+<p align="center">
+  <video src="docs/example.mp4" width="500px"></video>
+</p>
 
 ## Features
 
