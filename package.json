@@ -1,0 +1,83 @@
+{
+  "name": "quick-cuts",
+  "version": "1.0.0",
+  "description": "Automatically align and center specific words in images using OCR",
+  "main": "dist/main.js",
+  "homepage": "./dist/renderer/index.html",
+  "scripts": {
+    "dev": "electron .",
+    "build": "echo TypeScript already compiled to dist/ && echo Run npm run dev or npx electron .",
+    "start": "npx electron .",
+    "electron": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.quickcuts.app",
+    "productName": "Quick Cuts",
+    "copyright": "Copyright © 2025 Quick Cuts",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*",
+      "quick_cuts.py",
+      "requirements.txt",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "quick_cuts.py",
+        "to": "quick_cuts.py"
+      },
+      {
+        "from": "requirements.txt",
+        "to": "requirements.txt"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.graphics-design"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png",
+      "category": "Graphics"
+    }
+  },
+  "keywords": [
+    "ocr",
+    "image",
+    "alignment",
+    "desktop",
+    "electron"
+  ],
+  "author": "Quick Cuts",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.19",
+    "electron": "^28.3.3",
+    "electron-builder": "^24.9.1",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "electron-updater": "^6.1.8"
+  }
+}

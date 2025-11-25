@@ -9,6 +9,7 @@ env/
 ENV/
 .venv
 
+
 # uv
 .venv/
 uv.lock
@@ -45,3 +46,5 @@ desktop.ini
 *.tmp
 temp/
 tmp/
+
+node_modules/

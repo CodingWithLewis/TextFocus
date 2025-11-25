@@ -4,21 +4,51 @@ import pytesseract
 from pytesseract import Output
 import argparse
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Callable
 import logging
-from multiprocessing import Pool, cpu_count
+import sys
+from multiprocessing import Pool, cpu_count, Manager, Value
 import functools
+from sklearn.cluster import KMeans
+import threading
+import time
 
-logging.basicConfig(level=logging.INFO)
+# Route logs to stdout so Electron treats them as normal output (not errors)
+# Use force=True to ensure child processes (multiprocessing) pick up configuration
+logging.basicConfig(level=logging.INFO, stream=sys.stdout, format='%(levelname)s:%(name)s:%(message)s', force=True)
 logger = logging.getLogger(__name__)
 
 class ImageWordAligner:
-    def __init__(self, target_word: str, output_size: Tuple[int, int] = (1920, 1080), word_height: int = 100, exact_match: bool = True):
+    def __init__(self, target_word: str, output_size: Tuple[int, int] = (1920, 1080), word_height: int = 100, exact_match: bool = True, background: str = 'dominant'):
         self.target_word = target_word.lower()
         self.output_width, self.output_height = output_size
         self.target_word_height = word_height
         self.exact_match = exact_match
+        self.background = background
+        self.cancelled = False
+        self.progress_callback = None
+        self.current_progress = 0
+        self.total_images = 0
         
+    def get_dominant_color(self, image: np.ndarray, n_colors: int = 5) -> Tuple[int, int, int]:
+        """Extract the dominant color from an image using K-means clustering"""
+        # Reshape image to be a list of pixels
+        pixels = image.reshape((-1, 3))
+        
+        # Apply K-means clustering to find dominant colors
+        kmeans = KMeans(n_clusters=n_colors, random_state=42, n_init=10)
+        kmeans.fit(pixels)
+        
+        # Get the color with the most pixels assigned to it
+        labels = kmeans.labels_
+        label_counts = np.bincount(labels)
+        dominant_label = label_counts.argmax()
+        
+        # Get the dominant color (BGR format)
+        dominant_color = kmeans.cluster_centers_[dominant_label]
+        
+        return tuple(map(int, dominant_color))
+    
     def find_word_in_image(self, image_path: str) -> Optional[Dict]:
         """Use OCR to find the target word and its bounding box in an image"""
         # Handle Unicode characters in path
@@ -102,8 +132,20 @@ class ImageWordAligner:
         word_center_x = int(word_data['center_x'] * scale)
         word_center_y = int(word_data['center_y'] * scale)
         
-        # Create output image with white background
-        output = np.ones((self.output_height, self.output_width, 3), dtype=np.uint8) * 255
+        # Create output image with background color
+        if self.background == 'dominant':
+            # Get dominant color from the source image
+            dominant_color = self.get_dominant_color(source_image)
+            output = np.ones((self.output_height, self.output_width, 3), dtype=np.uint8)
+            output[:] = dominant_color
+        elif self.background == 'black':
+            output = np.zeros((self.output_height, self.output_width, 3), dtype=np.uint8)
+        elif self.background == 'transparent':
+            # For transparent, we'll use a 4-channel image (BGRA)
+            output = np.ones((self.output_height, self.output_width, 4), dtype=np.uint8) * 255
+            output[:, :, 3] = 0  # Set alpha channel to 0 (transparent)
+        else:  # white
+            output = np.ones((self.output_height, self.output_width, 3), dtype=np.uint8) * 255
         
         # Calculate where to place the resized image to center the word
         output_center_x = self.output_width // 2
@@ -129,8 +171,14 @@ class ImageWordAligner:
         
         # Copy the region
         if copy_width > 0 and copy_height > 0:
-            output[dst_top:dst_bottom, dst_left:dst_right] = \
-                resized[src_top:src_top + copy_height, src_left:src_left + copy_width]
+            if self.background == 'transparent':
+                # For transparent background, copy RGB channels and set alpha to 255 for copied region
+                output[dst_top:dst_bottom, dst_left:dst_right, :3] = \
+                    resized[src_top:src_top + copy_height, src_left:src_left + copy_width]
+                output[dst_top:dst_bottom, dst_left:dst_right, 3] = 255
+            else:
+                output[dst_top:dst_bottom, dst_left:dst_right] = \
+                    resized[src_top:src_top + copy_height, src_left:src_left + copy_width]
         
         return output
     
@@ -145,6 +193,9 @@ class ImageWordAligner:
             
             # Save with same name in output directory
             output_filename = f"aligned_{Path(image_path).name}"
+            # Force PNG format for transparent images
+            if self.background == 'transparent':
+                output_filename = output_filename.rsplit('.', 1)[0] + '.png'
             output_path = output_dir / output_filename
             
             # Handle Unicode in output path as well
@@ -152,7 +203,8 @@ class ImageWordAligner:
                 cv2.imwrite(str(output_path), aligned_image)
             except:
                 # Use numpy save method for Unicode paths
-                is_success, im_buf_arr = cv2.imencode(".png", aligned_image)
+                ext = '.png' if self.background == 'transparent' else Path(image_path).suffix
+                is_success, im_buf_arr = cv2.imencode(ext, aligned_image)
                 if is_success:
                     im_buf_arr.tofile(str(output_path))
             
@@ -201,9 +253,9 @@ def main():
                        help='Output image size (default: 1920x1080)')
     parser.add_argument('--word-height', type=int, default=100,
                        help='Target height for the word in pixels (default: 100)')
-    parser.add_argument('--background', default='white',
-                       choices=['white', 'black', 'transparent'],
-                       help='Background color (default: white)')
+    parser.add_argument('--background', default='dominant',
+                       choices=['white', 'black', 'transparent', 'dominant'],
+                       help='Background color (default: dominant - uses the most dominant color from the image)')
     parser.add_argument('--partial', action='store_true',
                        help='Enable partial matching (e.g., "warp" matches "warpdotdev")')
     parser.add_argument('--workers', type=int, default=None,
@@ -241,7 +293,7 @@ def main():
     output_dir.mkdir(exist_ok=True, parents=True)
     
     # Process images
-    aligner = ImageWordAligner(args.word, (width, height), args.word_height, exact_match=not args.partial)
+    aligner = ImageWordAligner(args.word, (width, height), args.word_height, exact_match=not args.partial, background=args.background)
     aligner.process_images(image_paths, output_dir, workers=args.workers)
     
     logger.info(f"\nAligned images saved to: {output_dir.absolute()}")

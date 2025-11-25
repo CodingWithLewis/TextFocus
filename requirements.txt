@@ -2,3 +2,8 @@ opencv-python>=4.8.0
 pytesseract>=0.3.10
 numpy>=1.26.0
 Pillow>=10.0.0
+scikit-learn>=1.3.0
+
+# Web aggregation
+requests>=2.31.0
+feedparser>=6.0.10

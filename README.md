@@ -148,3 +148,43 @@ MIT License - feel free to use this tool for any purpose!
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Web Scraping (scrape_content)
+
+New: Quick Cuts can now fetch related articles/posts for a keyword so you can keep research and creation in one place.
+
+- Sources (no API keys required): Google News RSS, Bing News RSS, Hacker News
+- Output: normalized items with fields: source, title, url, snippet, published_at
+
+Dependencies
+- Ensure these are installed (already added to requirements):
+  - requests>=2.31.0
+  - feedparser>=6.0.10
+
+Quick start (Python IPC example)
+```python
+import json, subprocess, sys
+# Start backend
+p = subprocess.Popen([sys.executable, 'backend_service.py'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+print('Startup:', p.stdout.readline().strip())
+
+# Send scrape command
+cmd = {"command": "scrape_content", "query": "OpenAI", "limit": 5, "sources": ["news", "hn"]}
+p.stdin.write(json.dumps(cmd) + "\n"); p.stdin.flush()
+print('Response:', p.stdout.readline().strip())
+
+# Shutdown backend
+p.stdin.write(json.dumps({"command": "shutdown"}) + "\n"); p.stdin.flush()
+print('Shutdown:', p.stdout.readline().strip())
+```
+
+Command parameters
+- query (string, required): keyword/phrase to search
+- limit (int, optional, default 10): max items per source (1–50)
+- sources (list or comma-separated string, optional):
+  - "news" -> Google News + Bing News RSS
+  - "hn" -> Hacker News (Algolia)
+
+Notes
+- The backend will reply with an error if dependencies are missing.
+- Network calls use timeouts; some sources may occasionally fail—errors are handled per source so others can still return results.
