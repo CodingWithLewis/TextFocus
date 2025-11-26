@@ -6,13 +6,21 @@ Automatically center specific words in images using OCR. Perfect for creating th
 
 ## Quick Start
 
+**macOS / Linux:**
 ```bash
 git clone https://github.com/yourusername/quick-cuts.git
 cd quick-cuts
 source ./install.sh
 ```
 
-That's it! The install script handles Tesseract OCR, Python dependencies, and PATH setup automatically.
+**Windows:**
+```batch
+git clone https://github.com/yourusername/quick-cuts.git
+cd quick-cuts
+install.bat
+```
+
+The install script handles Tesseract OCR, Python dependencies, and PATH setup automatically.
 
 ## Usage
 
@@ -104,7 +112,8 @@ quick-cuts/
 ├── output/                  # Aligned images (from align command)
 ├── copyright_attributions/  # Source URLs for downloaded images
 ├── samples/                 # Sample images to test with
-├── install.sh               # One-command installer
+├── install.sh               # Installer (macOS/Linux)
+├── install.bat              # Installer (Windows)
 └── pyproject.toml           # Package config
 ```
 
