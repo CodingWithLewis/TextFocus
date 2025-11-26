@@ -6,10 +6,11 @@ import argparse
 from pathlib import Path
 import logging
 import sys
-from multiprocessing import cpu_count
 import glob
+import json
 
 from .aligner import ImageWordAligner
+from .scraper import aggregate_content, fetch_images
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -45,22 +46,8 @@ def collect_image_paths(inputs):
     return list(set(str(p) for p in image_paths))
 
 
-def main():
-    """Main entry point for the quick-cuts CLI."""
-    parser = argparse.ArgumentParser(
-        prog='quick-cuts',
-        description='Align and center words in images using OCR'
-    )
-    parser.add_argument('images', nargs='+', help='Input image file(s) or directory')
-    parser.add_argument('-w', '--word', required=True, help='Target word to center')
-    parser.add_argument('-o', '--output', default='./aligned_{word}', help='Output directory')
-    parser.add_argument('-s', '--size', default='1920x1080', help='Output size (WIDTHxHEIGHT)')
-    parser.add_argument('--word-height', type=int, default=100, help='Target word height in pixels')
-    parser.add_argument('--partial', action='store_true', help='Enable partial word matching')
-    parser.add_argument('--background', choices=['white', 'black', 'dominant'], default='white', help='Background color')
-    
-    args = parser.parse_args()
-    
+def cmd_align(args):
+    """Handle the align command."""
     # Parse size
     try:
         width, height = map(int, args.size.split('x'))
@@ -106,6 +93,153 @@ def main():
     except Exception as e:
         logger.error(f"Error: {e}")
         sys.exit(1)
+
+
+def cmd_scrape(args):
+    """Handle the scrape command."""
+    query = args.query
+    limit = args.limit
+    
+    # Parse sources
+    sources = None
+    if args.sources:
+        sources = [s.strip() for s in args.sources.split(',')]
+    
+    logger.info(f"Searching for: {query}")
+    
+    try:
+        results = aggregate_content(query, limit=limit, sources=sources, logger=logger)
+        
+        if not results:
+            print("No results found.")
+            return
+        
+        print(f"\nFound {len(results)} articles:\n")
+        
+        if args.json:
+            print(json.dumps(results, indent=2))
+        else:
+            for i, item in enumerate(results, 1):
+                source = item.get('source', 'unknown')
+                title = item.get('title', 'No title')
+                url = item.get('url', '')
+                published = item.get('published_at', '')
+                
+                print(f"{i}. [{source}] {title}")
+                if published:
+                    print(f"   Published: {published[:10]}")
+                print(f"   {url}")
+                print()
+        
+    except Exception as e:
+        logger.error(f"Error: {e}")
+        sys.exit(1)
+
+
+def cmd_fetch(args):
+    """Handle the fetch command - download images."""
+    query = args.query
+    limit = args.limit
+    output_dir = args.output
+    
+    print(f"Fetching {limit} images for '{query}'...")
+    
+    try:
+        saved_files = fetch_images(query, limit=limit, output_dir=output_dir)
+        
+        if not saved_files:
+            print("No images found or downloaded.")
+            sys.exit(1)
+        
+        print(f"Downloaded {len(saved_files)} images to {output_dir}/")
+        
+    except Exception as e:
+        logger.error(f"Error: {e}")
+        sys.exit(1)
+
+
+def cmd_clear(args):
+    """Clear input, output, or attributions folder."""
+    import shutil
+    
+    folder = args.folder
+    
+    if folder == 'attributions':
+        folder_path = Path('copyright_attributions')
+        if not folder_path.exists():
+            print("No copyright attributions folder.")
+            return
+        shutil.rmtree(folder_path)
+        print("Cleared copyright_attributions/")
+        return
+    
+    folder_path = Path(folder)
+    
+    if not folder_path.exists():
+        print(f"Folder '{folder}' does not exist.")
+        return
+    
+    extensions = {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff'}
+    count = 0
+    
+    for f in folder_path.iterdir():
+        if f.is_file() and f.suffix.lower() in extensions:
+            f.unlink()
+            count += 1
+    
+    print(f"Cleared {count} images from {folder}/")
+
+
+def main():
+    """Main entry point for the quick-cuts CLI."""
+    parser = argparse.ArgumentParser(
+        prog='quick-cuts',
+        description='OCR-based image alignment and content research tools'
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # Align command
+    align_parser = subparsers.add_parser('align', help='Align and center words in images')
+    align_parser.add_argument('images', nargs='+', help='Input image file(s) or directory')
+    align_parser.add_argument('-w', '--word', required=True, help='Target word to center')
+    align_parser.add_argument('-o', '--output', default='./aligned_{word}', help='Output directory')
+    align_parser.add_argument('-s', '--size', default='1920x1080', help='Output size (WIDTHxHEIGHT)')
+    align_parser.add_argument('--word-height', type=int, default=100, help='Target word height in pixels')
+    align_parser.add_argument('--partial', action='store_true', help='Enable partial word matching')
+    align_parser.add_argument('--background', choices=['white', 'black', 'dominant'], default='white', help='Background color')
+    
+    # Fetch command (download images)
+    fetch_parser = subparsers.add_parser('fetch', help='Download images related to a search term')
+    fetch_parser.add_argument('query', help='Search term for images')
+    fetch_parser.add_argument('-n', '--limit', type=int, default=10, help='Number of images to download (default: 10)')
+    fetch_parser.add_argument('-o', '--output', default='input', help='Output directory (default: input/)')
+    
+    # Scrape command (news articles)
+    scrape_parser = subparsers.add_parser('scrape', help='Search for news/articles on a topic')
+    scrape_parser.add_argument('query', help='Search query')
+    scrape_parser.add_argument('-n', '--limit', type=int, default=10, help='Max results per source (default: 10)')
+    scrape_parser.add_argument('--sources', help='Comma-separated sources: news,hn (default: all)')
+    scrape_parser.add_argument('--json', action='store_true', help='Output as JSON')
+    
+    # Clear command
+    clear_parser = subparsers.add_parser('clear', help='Clear images from a folder')
+    clear_parser.add_argument('folder', choices=['input', 'output', 'attributions'], help='Folder to clear')
+    
+    args = parser.parse_args()
+    
+    if args.command == 'align':
+        cmd_align(args)
+    elif args.command == 'fetch':
+        cmd_fetch(args)
+    elif args.command == 'scrape':
+        cmd_scrape(args)
+    elif args.command == 'clear':
+        cmd_clear(args)
+    else:
+        # No command given - launch interactive mode
+        from .interactive import main as interactive_main
+        interactive_main()
 
 
 if __name__ == "__main__":

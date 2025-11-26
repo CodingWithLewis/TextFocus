@@ -14,9 +14,13 @@ quick-cuts/
 │   ├── __init__.py       # Package exports
 │   ├── aligner.py        # Core ImageWordAligner class
 │   ├── cli.py            # Command-line interface
-│   └── scraper.py        # Web content aggregator (optional feature)
-├── assets/               # Static assets (images, gifs for docs)
+│   ├── interactive.py    # Interactive menu mode
+│   └── scraper.py        # Web scraper + image downloader
+├── input/                # Downloaded images (from fetch command)
+├── output/               # Aligned images (from align command)
+├── copyright_attributions/  # Source URLs for downloaded images
 ├── samples/              # Sample images for testing
+├── assets/               # Static assets (images, gifs for docs)
 ├── install.sh            # One-command installer
 ├── pyproject.toml        # Package configuration
 ├── README.md             # User documentation
@@ -26,14 +30,16 @@ quick-cuts/
 ## Key Commands
 
 ```bash
-# Install (handles Tesseract + Python deps)
-./install.sh
+# Install (handles Tesseract + Python deps + PATH)
+source ./install.sh
 
-# Run the tool
-quick-cuts images/ -w "word" --partial
+# Launch interactive mode
+quick-cuts            # or: qc
 
-# Or run directly
-python -m quick_cuts.cli images/ -w "word"
+# Direct commands
+quick-cuts fetch "keyword" -n 10      # Download images to input/
+quick-cuts align input/ -w "word"     # Align images to output/
+quick-cuts scrape "topic" -n 10       # Search news articles
 ```
 
 ## Architecture
@@ -50,12 +56,21 @@ python -m quick_cuts.cli images/ -w "word"
 
 - Argument parsing with argparse
 - `collect_image_paths()` - Handles files, directories, glob patterns
-- Entry point: `main()`
+- Entry point: `main()` - launches interactive mode by default
 
-### `scraper.py` - Web Aggregator (Optional)
+### `interactive.py` - Interactive Menu
 
-- Fetches news/articles from Google News, Bing News, Hacker News
-- `aggregate_content()` - Main function for fetching related content
+- Menu-driven interface for guided workflow
+- `fetch_images_interactive()` - Prompts for search term and count
+- `align_images_interactive()` - Prompts for word, settings, runs alignment
+- Automatically uses input/ and output/ folders
+
+### `scraper.py` - Web Aggregator
+
+- Fetches news/articles from Google News RSS, Bing News RSS, Hacker News API
+- `aggregate_content(query, limit, sources, logger)` - Main function
+- Sources: `news` (Google + Bing), `hn` (Hacker News)
+- Returns list of `{source, title, url, snippet, published_at}` dicts
 
 ## Technical Details
 
@@ -98,5 +113,9 @@ Edit `aligner.py`:
 ### Testing changes
 
 ```bash
-quick-cuts samples/ -w "cookie" --partial -o test_output
+# Test alignment
+quick-cuts align samples/ -w "cookie" --partial -o test_output
+
+# Test scraper
+quick-cuts scrape "test query" -n 3
 ```

@@ -9,25 +9,51 @@ Automatically center specific words in images using OCR. Perfect for creating th
 ```bash
 git clone https://github.com/yourusername/quick-cuts.git
 cd quick-cuts
-./install.sh
+source ./install.sh
 ```
 
-That's it! The install script handles Tesseract OCR and Python dependencies automatically.
+That's it! The install script handles Tesseract OCR, Python dependencies, and PATH setup automatically.
 
 ## Usage
 
+### Interactive Mode
+
+Launch the interactive CLI for a guided experience:
+
 ```bash
-# Basic - find and center a word
-quick-cuts images/ -w "breaking"
-
-# Partial matching - "cookie" matches "cookies", "Cookiebot", etc.
-quick-cuts images/ -w "cookie" --partial
-
-# Custom output size and background
-quick-cuts images/ -w "news" -s 1920x1080 --background dominant
+quick-cuts
 ```
 
-### Options
+```
+==================================================
+  QUICK CUTS - Word Alignment Tool
+==================================================
+
+  Input folder:  0 images
+  Output folder: 0 images
+
+  [1] Fetch images from web
+  [2] Align images
+  [3] Clear input folder
+  [4] Clear output folder
+  [5] Clear attributions
+  [6] Exit
+```
+
+### Command Line
+
+#### Align Images
+
+```bash
+# Basic - find and center a word
+quick-cuts align images/ -w "breaking"
+
+# Partial matching - "cookie" matches "cookies", "Cookiebot", etc.
+quick-cuts align images/ -w "cookie" --partial
+
+# Custom output size and background
+quick-cuts align images/ -w "news" -s 1920x1080 --background dominant
+```
 
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -37,6 +63,19 @@ quick-cuts images/ -w "news" -s 1920x1080 --background dominant
 | `--word-height` | Target word height (px) | `100` |
 | `--partial` | Match word prefixes | `false` |
 | `--background` | `white`, `black`, or `dominant` | `white` |
+
+#### Fetch Images
+
+```bash
+quick-cuts fetch "cookie banner" -n 10
+quick-cuts fetch "breaking news" -n 5 -o my_images/
+```
+
+#### Scrape News
+
+```bash
+quick-cuts scrape "breaking news" -n 5
+```
 
 ## How It Works
 
@@ -58,11 +97,13 @@ Create smooth documentary-style cuts where a keyword stays centered:
 
 ```
 quick-cuts/
-├── quick_cuts/       # Python package
-├── assets/           # Images and gifs for documentation
-├── samples/          # Sample images to test with
-├── install.sh        # One-command installer
-└── pyproject.toml    # Package config
+├── quick_cuts/              # Python package
+├── input/                   # Downloaded images (from fetch command)
+├── output/                  # Aligned images (from align command)
+├── copyright_attributions/  # Source URLs for downloaded images
+├── samples/                 # Sample images to test with
+├── install.sh               # One-command installer
+└── pyproject.toml           # Package config
 ```
 
 ## Requirements

@@ -9,10 +9,14 @@ build/
 venv/
 .venv/
 
-# Output directories
+# Output directories (keep folders, ignore contents)
 aligned_*/
-output/
+input/*
+output/*
 test_output/
+copyright_attributions/
+!input/.gitkeep
+!output/.gitkeep
 
 # OS files
 .DS_Store

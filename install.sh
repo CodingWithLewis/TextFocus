@@ -88,25 +88,41 @@ pip3 install -e "$SCRIPT_DIR" --quiet
 
 echo -e "${GREEN}✓ Quick Cuts installed${NC}"
 
-# Check if quick-cuts is in PATH
-echo ""
-if command -v quick-cuts &> /dev/null; then
-    echo -e "${GREEN}✓ Installation complete!${NC}"
-else
-    # Find where pip installed it
-    PIP_BIN=$(python3 -c "import site; print(site.USER_BASE)")/bin
+# Add to PATH if needed
+PIP_BIN=$(python3 -c "import site; print(site.USER_BASE)")/bin
+
+if ! command -v quick-cuts &> /dev/null; then
+    # Determine shell config file
+    if [[ "$SHELL" == *"zsh"* ]]; then
+        SHELL_RC="$HOME/.zshrc"
+    else
+        SHELL_RC="$HOME/.bashrc"
+    fi
     
-    echo -e "${YELLOW}Note: Add this to your PATH to use 'quick-cuts' command:${NC}"
-    echo ""
-    echo "  export PATH=\"$PIP_BIN:\$PATH\""
-    echo ""
-    echo "Or run directly with:"
-    echo "  python3 -m quick_cuts.cli"
+    # Check if already in rc file
+    if ! grep -q "$PIP_BIN" "$SHELL_RC" 2>/dev/null; then
+        echo "" >> "$SHELL_RC"
+        echo "# Added by Quick Cuts installer" >> "$SHELL_RC"
+        echo "export PATH=\"$PIP_BIN:\$PATH\"" >> "$SHELL_RC"
+        echo -e "${GREEN}✓ Added $PIP_BIN to $SHELL_RC${NC}"
+    fi
+    
+    # Add to current session
+    export PATH="$PIP_BIN:$PATH"
 fi
 
 echo ""
-echo "Usage:"
-echo "  quick-cuts images/ -w \"word\" --partial"
+echo -e "${GREEN}✓ Installation complete!${NC}"
 echo ""
-echo "Try it with sample images:"
-echo "  quick-cuts samples/ -w \"cookie\" --partial"
+echo "Usage:"
+echo "  quick-cuts                              # Interactive mode"
+echo "  quick-cuts fetch \"keyword\" -n 10        # Download images"
+echo "  quick-cuts align input/ -w \"word\"       # Align images"
+echo ""
+
+# Check if running with source
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    echo -e "${YELLOW}Run 'source ~/.zshrc' or open a new terminal to use quick-cuts${NC}"
+else
+    echo "Try it now: quick-cuts"
+fi
