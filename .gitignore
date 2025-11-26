@@ -1,50 +1,32 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
+*.egg-info/
+dist/
+build/
 
 # Virtual environments
 venv/
-env/
-ENV/
-.venv
-
-
-# uv
 .venv/
-uv.lock
 
-# Output directories
+# Output directories (keep folders, ignore contents)
 aligned_*/
-output/
-results/
+input/*
+output/*
+test_output/
+copyright_attributions/*
+!input/.gitkeep
+!output/.gitkeep
+!copyright_attributions/.gitkeep
 
-# Test images
-test_images/
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.bmp
-*.tiff
-!docs/example.gif
 # OS files
 .DS_Store
 Thumbs.db
-desktop.ini
 
-# IDE files
+# IDE
 .vscode/
 .idea/
 *.swp
-*.swo
 
 # Logs
 *.log
-
-# Temporary files
-*.tmp
-temp/
-tmp/
-
-node_modules/

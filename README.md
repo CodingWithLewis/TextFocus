@@ -1,190 +1,127 @@
 # Quick Cuts
 
-A Python tool that automatically aligns and centers specific words in images using OCR.
+Automatically center specific words in images using OCR. Perfect for creating that "busy" documentary-style video effect.
 
-Perfect for creating that "busy" effect in documentary-style videos.
+![Example](assets/example.gif)
 
-![Final result (with effects from After Effects)](docs/example.gif)
+## Quick Start
 
-## Features
-
-- 🔍 **OCR-powered word detection** - Automatically finds target words in images
-- 🎯 **Automatic centering** - Centers the detected word in the output frame
-- 📐 **Consistent sizing** - Maintains uniform word size across all images
-- ⚡ **Parallel processing** - Processes multiple images simultaneously for speed
-- 🔤 **Partial matching** - Optionally match partial words (e.g., "warp" matches "warpdotdev")
-- 📁 **Batch processing** - Process entire folders of images at once
-
-## Installation
-
-### Prerequisites
-
-1. Python 3.8 or higher
-2. [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) installed on your system
-   - **Windows**: Download installer from [GitHub releases](https://github.com/UB-Mannheim/tesseract/wiki)
-   - **Mac**: `brew install tesseract`
-   - **Linux**: `sudo apt-get install tesseract-ocr`
-
-### Using uv (Recommended)
-
+**macOS / Linux:**
 ```bash
-# Clone the repository
 git clone https://github.com/yourusername/quick-cuts.git
 cd quick-cuts
-
-# Install dependencies with uv
-uv pip install -r requirements.txt
+source ./install.sh
 ```
 
-### Using pip
-
-```bash
-# Clone the repository
+**Windows:**
+```batch
 git clone https://github.com/yourusername/quick-cuts.git
 cd quick-cuts
-
-# Install dependencies
-pip install -r requirements.txt
+install.bat
 ```
+
+The install script handles Tesseract OCR, Python dependencies, and PATH setup automatically.
 
 ## Usage
 
-### Basic Usage
+### Interactive Mode
 
-Process images with a specific word:
+Launch the interactive CLI for a guided experience:
 
 ```bash
-python quick_cuts.py images/*.png -w "breaking"
+quick-cuts
 ```
 
-### Examples
+```
+==================================================
+  QUICK CUTS - Word Alignment Tool
+==================================================
 
-**Process a folder with partial matching:**
+  Input folder:  0 images
+  Output folder: 0 images
+
+  [1] Fetch images from web
+  [2] Align images
+  [3] Agent mode (auto-collect)
+  [4] Create video from output
+  [5] Clear input folder
+  [6] Clear output folder
+  [7] Clear attributions
+  [8] Exit
+```
+
+### Command Line
+
+#### Align Images
+
 ```bash
-python quick_cuts.py images/ -w "warp" --partial
-```
+# Basic - find and center a word
+quick-cuts align images/ -w "breaking"
 
-**Custom output size and word height:**
-```bash
-python quick_cuts.py images/*.jpg -w "news" -s 1920x1080 --word-height 150
-```
+# Partial matching - "cookie" matches "cookies", "Cookiebot", etc.
+quick-cuts align images/ -w "cookie" --partial
 
-**Specify output directory:**
-```bash
-python quick_cuts.py images/ -w "alert" -o output_folder
+# Custom output size and background
+quick-cuts align images/ -w "news" -s 1920x1080 --background dominant
 ```
-
-**Use multiple workers for faster processing:**
-```bash
-python quick_cuts.py images/ -w "update" --workers 8
-```
-
-### Command Line Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `images` | Input image file(s) or directory | Required |
-| `-w, --word` | Target word to center | Required |
-| `-o, --output` | Output directory | `./aligned_[word]` |
-| `-s, --size` | Output image size | `1920x1080` |
-| `--word-height` | Target height for word in pixels | `100` |
-| `--partial` | Enable partial word matching | `False` |
-| `--workers` | Number of parallel workers | CPU count |
-| `--background` | Background color (white/black/transparent) | `white` |
+| `-w, --word` | Word to find and center | Required |
+| `-o, --output` | Output directory | `./aligned_{word}` |
+| `-s, --size` | Output dimensions | `1920x1080` |
+| `--word-height` | Target word height (px) | `100` |
+| `--partial` | Match word prefixes | `false` |
+| `--background` | `white`, `black`, or `dominant` | `white` |
+
+#### Fetch Images
+
+```bash
+quick-cuts fetch "cookie banner" -n 10
+quick-cuts fetch "breaking news" -n 5 -o my_images/
+```
+
+#### Scrape News
+
+```bash
+quick-cuts scrape "breaking news" -n 5
+```
 
 ## How It Works
 
-1. **OCR Detection**: The tool uses Tesseract OCR to detect text in each image
-2. **Word Location**: Finds the target word and its bounding box
-3. **Alignment Calculation**: Calculates the transformation needed to center the word
-4. **Image Generation**: Creates a new image with the word perfectly centered
-5. **Batch Processing**: Processes all images in parallel for efficiency
+1. **OCR** - Tesseract scans each image for text
+2. **Match** - Finds your target word with bounding box
+3. **Align** - Creates new image with word perfectly centered
+4. **Scale** - Maintains consistent word size across all outputs
 
-## Output
+## Use Case
 
-The tool creates aligned images with consistent properties:
-- All images have the same resolution
-- Target word is centered in every frame
-- Word size is consistent across all images
-- Original aspect ratios are preserved where possible
+Create smooth documentary-style cuts where a keyword stays centered:
 
-Output files are saved as `aligned_[original_filename]` in the output directory.
+1. Export frames from different video clips
+2. Run `quick-cuts` to align all frames on your keyword
+3. Import aligned images into Premiere/After Effects
+4. Cut between clips with the word always in the same position
 
-## Tips for Best Results
+## Project Structure
 
-1. **Image Quality**: Higher resolution images produce better OCR results
-2. **Text Clarity**: Ensure text is clear and readable in source images
-3. **Contrast**: Good contrast between text and background improves detection
-4. **Preprocessing**: The tool automatically applies image preprocessing, but very poor quality images may still fail
+```
+quick-cuts/
+├── quick_cuts/              # Python package
+├── input/                   # Downloaded images (from fetch command)
+├── output/                  # Aligned images (from align command)
+├── copyright_attributions/  # Source URLs for downloaded images
+├── samples/                 # Sample images to test with
+├── install.sh               # Installer (macOS/Linux)
+├── install.bat              # Installer (Windows)
+└── pyproject.toml           # Package config
+```
 
-## Troubleshooting
+## Requirements
 
-### OCR not finding words
-- Ensure Tesseract is properly installed and in your PATH
-- Try adjusting the confidence threshold in the code
-- Check that the text is clear and readable in your images
-
-### Unicode filename errors
-- The tool handles Unicode characters in filenames automatically
-- If issues persist, try renaming files to use only ASCII characters
-
-### Performance issues
-- Reduce the number of workers if you experience memory issues
-- Process images in smaller batches for very large datasets
-
-## Use Case: Video Editing
-
-This tool is perfect for creating dynamic news-style cuts where specific words need to be emphasized:
-
-1. Export frames from your video clips
-2. Run quick_cuts to align all frames on your target word
-3. Import the aligned images into Premiere/After Effects
-4. Create smooth transitions between different clips with the word always centered
+- Python 3.8+
+- Tesseract OCR (installed automatically by `./install.sh`)
 
 ## License
 
-MIT License - feel free to use this tool for any purpose!
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Web Scraping (scrape_content)
-
-New: Quick Cuts can now fetch related articles/posts for a keyword so you can keep research and creation in one place.
-
-- Sources (no API keys required): Google News RSS, Bing News RSS, Hacker News
-- Output: normalized items with fields: source, title, url, snippet, published_at
-
-Dependencies
-- Ensure these are installed (already added to requirements):
-  - requests>=2.31.0
-  - feedparser>=6.0.10
-
-Quick start (Python IPC example)
-```python
-import json, subprocess, sys
-# Start backend
-p = subprocess.Popen([sys.executable, 'backend_service.py'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
-print('Startup:', p.stdout.readline().strip())
-
-# Send scrape command
-cmd = {"command": "scrape_content", "query": "OpenAI", "limit": 5, "sources": ["news", "hn"]}
-p.stdin.write(json.dumps(cmd) + "\n"); p.stdin.flush()
-print('Response:', p.stdout.readline().strip())
-
-# Shutdown backend
-p.stdin.write(json.dumps({"command": "shutdown"}) + "\n"); p.stdin.flush()
-print('Shutdown:', p.stdout.readline().strip())
-```
-
-Command parameters
-- query (string, required): keyword/phrase to search
-- limit (int, optional, default 10): max items per source (1–50)
-- sources (list or comma-separated string, optional):
-  - "news" -> Google News + Bing News RSS
-  - "hn" -> Hacker News (Algolia)
-
-Notes
-- The backend will reply with an error if dependencies are missing.
-- Network calls use timeouts; some sources may occasionally fail—errors are handled per source so others can still return results.
+MIT
