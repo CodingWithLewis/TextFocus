@@ -16,7 +16,8 @@ quick-cuts/
 │   ├── cli.py            # Command-line interface
 │   ├── interactive.py    # Interactive menu mode
 │   ├── scraper.py        # Web scraper + image downloader
-│   └── video.py          # Video creation from images
+│   ├── video.py          # Video creation from images
+│   └── agent.py          # Automated fetch+align workflow
 ├── input/                # Downloaded images (from fetch command)
 ├── output/               # Aligned images (from align command)
 ├── copyright_attributions/  # Source URLs for downloaded images
@@ -40,6 +41,7 @@ quick-cuts            # or: qc
 # Direct commands
 quick-cuts fetch "keyword" -n 10      # Download images to input/
 quick-cuts align input/ -w "word"     # Align images to output/
+quick-cuts agent "keyword" -t 100     # Auto-collect 100 aligned images
 quick-cuts video -d 100               # Create video from output/
 quick-cuts clear input                # Clear folder (input/output/attributions)
 quick-cuts scrape "topic" -n 10       # Search news articles
@@ -74,6 +76,12 @@ quick-cuts scrape "topic" -n 10       # Search news articles
 - `create_video(input_dir, output_file, delay_ms)` - Creates MP4 from images
 - Uses OpenCV for video encoding
 - Returns dict with success, path, frames, fps, duration_sec
+
+### `agent.py` - Automated Workflow
+
+- `run_agent(keyword, target_count, batch_size, ...)` - Main function
+- Fetches batches of images, aligns them, repeats until target reached
+- Returns dict with success, total_aligned, total_fetched, batches
 
 ### `scraper.py` - Web Aggregator
 

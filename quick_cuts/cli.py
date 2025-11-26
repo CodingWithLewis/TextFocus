@@ -12,6 +12,7 @@ import json
 from .aligner import ImageWordAligner
 from .scraper import aggregate_content, fetch_images
 from .video import create_video
+from .agent import run_agent
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -207,6 +208,37 @@ def cmd_video(args):
         sys.exit(1)
 
 
+def cmd_agent(args):
+    """Run agent mode to collect target number of aligned images."""
+    # Parse size
+    try:
+        width, height = map(int, args.size.split('x'))
+        output_size = (width, height)
+    except ValueError:
+        print("Invalid size format. Use WIDTHxHEIGHT (e.g., 1920x1080)")
+        sys.exit(1)
+    
+    print(f"Agent mode: Collecting {args.target} aligned images for '{args.keyword}'")
+    print()
+    
+    result = run_agent(
+        keyword=args.keyword,
+        target_count=args.target,
+        batch_size=args.batch,
+        output_size=output_size,
+        word_height=args.word_height,
+        partial_match=args.partial,
+        background=args.background,
+        progress_callback=print
+    )
+    
+    print()
+    print(f"Batches: {result['batches']}, Fetched: {result['total_fetched']}, Aligned: {result['total_aligned']}")
+    
+    if not result['success'] and result['error']:
+        sys.exit(1)
+
+
 def main():
     """Main entry point for the quick-cuts CLI."""
     parser = argparse.ArgumentParser(
@@ -249,6 +281,16 @@ def main():
     video_parser.add_argument('-o', '--output', default='output.mp4', help='Output filename (default: output.mp4)')
     video_parser.add_argument('-d', '--delay', type=int, default=100, help='Delay between frames in ms (default: 100)')
     
+    # Agent command
+    agent_parser = subparsers.add_parser('agent', help='Auto-collect target number of aligned images')
+    agent_parser.add_argument('keyword', help='Word to search for and align on')
+    agent_parser.add_argument('-t', '--target', type=int, default=100, help='Target number of aligned images (default: 100)')
+    agent_parser.add_argument('-b', '--batch', type=int, default=50, help='Images per batch (default: 50)')
+    agent_parser.add_argument('-s', '--size', default='1920x1080', help='Output size (WIDTHxHEIGHT)')
+    agent_parser.add_argument('--word-height', type=int, default=100, help='Target word height in pixels')
+    agent_parser.add_argument('--partial', action='store_true', default=True, help='Enable partial word matching (default: true)')
+    agent_parser.add_argument('--background', choices=['white', 'black', 'dominant'], default='white', help='Background color')
+    
     args = parser.parse_args()
     
     if args.command == 'align':
@@ -261,6 +303,8 @@ def main():
         cmd_clear(args)
     elif args.command == 'video':
         cmd_video(args)
+    elif args.command == 'agent':
+        cmd_agent(args)
     else:
         # No command given - launch interactive mode
         from .interactive import main as interactive_main

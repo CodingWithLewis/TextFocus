@@ -10,6 +10,7 @@ from pathlib import Path
 from .aligner import ImageWordAligner
 from .scraper import fetch_images
 from .video import create_video, get_image_files
+from .agent import run_agent
 
 
 def clear_screen():
@@ -49,11 +50,12 @@ def print_menu():
     """Print main menu options."""
     print("  [1] Fetch images from web")
     print("  [2] Align images")
-    print("  [3] Create video from output")
-    print("  [4] Clear input folder")
-    print("  [5] Clear output folder")
-    print("  [6] Clear attributions")
-    print("  [7] Exit")
+    print("  [3] Agent mode (auto-collect)")
+    print("  [4] Create video from output")
+    print("  [5] Clear input folder")
+    print("  [6] Clear output folder")
+    print("  [7] Clear attributions")
+    print("  [8] Exit")
     print()
 
 
@@ -229,6 +231,78 @@ def clear_attributions_interactive():
     # No prompt needed, will refresh on next menu display
 
 
+def agent_interactive():
+    """Run agent mode to auto-collect aligned images."""
+    clear_screen()
+    print_header()
+    print("  AGENT MODE")
+    print("  " + "-" * 30)
+    print()
+    print("  Automatically fetch and align images until target is reached.")
+    print()
+    
+    # Get keyword
+    keyword = input("  Keyword to search and align: ").strip()
+    if not keyword:
+        print("\n  Cancelled - no keyword provided.")
+        input("\n  Press Enter to continue...")
+        return
+    
+    # Get target count
+    target_input = input("  Target number of aligned images [100]: ").strip()
+    try:
+        target = int(target_input) if target_input else 100
+        if target < 1 or target > 1000:
+            print("\n  Error: Target must be between 1 and 1000.")
+            input("\n  Press Enter to continue...")
+            return
+    except ValueError:
+        print("\n  Error: Invalid number.")
+        input("\n  Press Enter to continue...")
+        return
+    
+    # Get batch size
+    batch_input = input("  Images per batch [50]: ").strip()
+    try:
+        batch_size = int(batch_input) if batch_input else 50
+        if batch_size < 10 or batch_size > 100:
+            print("\n  Error: Batch size must be between 10 and 100.")
+            input("\n  Press Enter to continue...")
+            return
+    except ValueError:
+        print("\n  Error: Invalid number.")
+        input("\n  Press Enter to continue...")
+        return
+    
+    print()
+    print("  Starting agent...")
+    print()
+    
+    def progress(msg):
+        print(f"  {msg}")
+    
+    result = run_agent(
+        keyword=keyword,
+        target_count=target,
+        batch_size=batch_size,
+        partial_match=True,
+        progress_callback=progress
+    )
+    
+    print()
+    print("  " + "-" * 30)
+    print(f"  Batches: {result['batches']}")
+    print(f"  Total fetched: {result['total_fetched']}")
+    print(f"  Total aligned: {result['total_aligned']}")
+    
+    if result['success']:
+        print(f"  Status: Complete!")
+    else:
+        print(f"  Status: {result['error'] or 'Stopped early'}")
+    
+    input("\n  Press Enter to continue...")
+
+
 def create_video_interactive():
     """Create video from output images."""
     clear_screen()
@@ -302,14 +376,16 @@ def main():
         elif choice == '2':
             align_images_interactive()
         elif choice == '3':
-            create_video_interactive()
+            agent_interactive()
         elif choice == '4':
-            clear_input_interactive()
+            create_video_interactive()
         elif choice == '5':
-            clear_output_interactive()
+            clear_input_interactive()
         elif choice == '6':
-            clear_attributions_interactive()
+            clear_output_interactive()
         elif choice == '7':
+            clear_attributions_interactive()
+        elif choice == '8':
             clear_screen()
             print("\n  Goodbye.\n")
             sys.exit(0)

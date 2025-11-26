@@ -34,11 +34,12 @@ quick-cuts
 
   [1] Fetch images from web
   [2] Align images
-  [3] Create video from output
-  [4] Clear input folder
-  [5] Clear output folder
-  [6] Clear attributions
-  [7] Exit
+  [3] Agent mode (auto-collect)
+  [4] Create video from output
+  [5] Clear input folder
+  [6] Clear output folder
+  [7] Clear attributions
+  [8] Exit
 ```
 
 ### Command Line
