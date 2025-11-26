@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .aligner import ImageWordAligner
 from .scraper import fetch_images
+from .video import create_video, get_image_files
 
 
 def clear_screen():
@@ -263,65 +264,25 @@ def create_video_interactive():
     # Get output filename
     filename_input = input("  Output filename [output.mp4]: ").strip()
     filename = filename_input if filename_input else "output.mp4"
-    if not filename.endswith('.mp4'):
-        filename += '.mp4'
     
     print()
     print("  Creating video...")
     print()
     
-    try:
-        import cv2
-        
-        # Collect and sort output images
-        extensions = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff'}
-        image_files = sorted([f for f in Path("output").iterdir() 
-                              if f.is_file() and f.suffix.lower() in extensions])
-        
-        if not image_files:
-            print("  Error: No valid images found.")
-            input("\n  Press Enter to continue...")
-            return
-        
-        # Read first image to get dimensions
-        first_img = cv2.imread(str(image_files[0]))
-        if first_img is None:
-            print("  Error: Could not read first image.")
-            input("\n  Press Enter to continue...")
-            return
-        
-        height, width = first_img.shape[:2]
-        
-        # Calculate FPS from delay (delay in ms -> fps)
-        fps = 1000.0 / delay_ms
-        
-        # Create video writer
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        video_path = Path("output") / filename
-        video = cv2.VideoWriter(str(video_path), fourcc, fps, (width, height))
-        
-        # Write frames
-        for img_path in image_files:
-            img = cv2.imread(str(img_path))
-            if img is not None:
-                # Resize if needed to match first image
-                if img.shape[:2] != (height, width):
-                    img = cv2.resize(img, (width, height))
-                video.write(img)
-        
-        video.release()
-        
+    result = create_video(
+        input_dir="output",
+        output_file=filename,
+        delay_ms=delay_ms
+    )
+    
+    if result['success']:
         print("  " + "-" * 30)
-        print(f"  Video created: output/{filename}")
-        print(f"  Frames: {len(image_files)}")
-        print(f"  FPS: {fps:.1f} ({delay_ms}ms delay)")
-        print(f"  Duration: {len(image_files) * delay_ms / 1000:.1f}s")
-        
-    except ImportError:
-        print("  Error: OpenCV not installed.")
-        print("  Run: pip install opencv-python")
-    except Exception as e:
-        print(f"  Error: {e}")
+        print(f"  Video created: {result['path']}")
+        print(f"  Frames: {result['frames']}")
+        print(f"  FPS: {result['fps']:.1f} ({delay_ms}ms delay)")
+        print(f"  Duration: {result['duration_sec']:.1f}s")
+    else:
+        print(f"  Error: {result['error']}")
     
     input("\n  Press Enter to continue...")
 

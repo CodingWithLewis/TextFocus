@@ -15,7 +15,8 @@ quick-cuts/
 │   ├── aligner.py        # Core ImageWordAligner class
 │   ├── cli.py            # Command-line interface
 │   ├── interactive.py    # Interactive menu mode
-│   └── scraper.py        # Web scraper + image downloader
+│   ├── scraper.py        # Web scraper + image downloader
+│   └── video.py          # Video creation from images
 ├── input/                # Downloaded images (from fetch command)
 ├── output/               # Aligned images (from align command)
 ├── copyright_attributions/  # Source URLs for downloaded images
@@ -39,6 +40,8 @@ quick-cuts            # or: qc
 # Direct commands
 quick-cuts fetch "keyword" -n 10      # Download images to input/
 quick-cuts align input/ -w "word"     # Align images to output/
+quick-cuts video -d 100               # Create video from output/
+quick-cuts clear input                # Clear folder (input/output/attributions)
 quick-cuts scrape "topic" -n 10       # Search news articles
 ```
 
@@ -63,7 +66,14 @@ quick-cuts scrape "topic" -n 10       # Search news articles
 - Menu-driven interface for guided workflow
 - `fetch_images_interactive()` - Prompts for search term and count
 - `align_images_interactive()` - Prompts for word, settings, runs alignment
+- `create_video_interactive()` - Creates video from output images
 - Automatically uses input/ and output/ folders
+
+### `video.py` - Video Creation
+
+- `create_video(input_dir, output_file, delay_ms)` - Creates MP4 from images
+- Uses OpenCV for video encoding
+- Returns dict with success, path, frames, fps, duration_sec
 
 ### `scraper.py` - Web Aggregator
 

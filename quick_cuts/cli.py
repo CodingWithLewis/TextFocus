@@ -11,6 +11,7 @@ import json
 
 from .aligner import ImageWordAligner
 from .scraper import aggregate_content, fetch_images
+from .video import create_video
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -190,6 +191,22 @@ def cmd_clear(args):
     print(f"Cleared {count} images from {folder}/")
 
 
+def cmd_video(args):
+    """Create video from images."""
+    result = create_video(
+        input_dir=args.input,
+        output_file=args.output,
+        delay_ms=args.delay
+    )
+    
+    if result['success']:
+        print(f"Video created: {result['path']}")
+        print(f"Frames: {result['frames']}, FPS: {result['fps']:.1f}, Duration: {result['duration_sec']:.1f}s")
+    else:
+        print(f"Error: {result['error']}")
+        sys.exit(1)
+
+
 def main():
     """Main entry point for the quick-cuts CLI."""
     parser = argparse.ArgumentParser(
@@ -226,6 +243,12 @@ def main():
     clear_parser = subparsers.add_parser('clear', help='Clear images from a folder')
     clear_parser.add_argument('folder', choices=['input', 'output', 'attributions'], help='Folder to clear')
     
+    # Video command
+    video_parser = subparsers.add_parser('video', help='Create video from images')
+    video_parser.add_argument('-i', '--input', default='output', help='Input directory (default: output/)')
+    video_parser.add_argument('-o', '--output', default='output.mp4', help='Output filename (default: output.mp4)')
+    video_parser.add_argument('-d', '--delay', type=int, default=100, help='Delay between frames in ms (default: 100)')
+    
     args = parser.parse_args()
     
     if args.command == 'align':
@@ -236,6 +259,8 @@ def main():
         cmd_scrape(args)
     elif args.command == 'clear':
         cmd_clear(args)
+    elif args.command == 'video':
+        cmd_video(args)
     else:
         # No command given - launch interactive mode
         from .interactive import main as interactive_main
