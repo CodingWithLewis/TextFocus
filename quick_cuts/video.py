@@ -5,10 +5,14 @@ Video creation from aligned images.
 from pathlib import Path
 from typing import List, Optional
 
+import imageio.v3 as iio
+import numpy as np
+from PIL import Image
+
 
 def get_image_files(input_dir: str = "output") -> List[Path]:
     """Get sorted list of image files from directory."""
-    extensions = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff'}
+    extensions = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff', '.gif'}
     input_path = Path(input_dir)
     
     if not input_path.exists():
@@ -31,13 +35,11 @@ def create_video(
         input_dir: Directory containing source images
         output_file: Output video filename
         delay_ms: Delay between frames in milliseconds
-        output_dir: Directory to save video (default: same as input_dir)
+        output_dir: Directory to save video (default: current directory)
         
     Returns:
         dict with keys: success, path, frames, fps, duration_sec, error
     """
-    import cv2
-    
     result = {
         'success': False,
         'path': None,
@@ -54,14 +56,6 @@ def create_video(
         result['error'] = f"No images found in {input_dir}/"
         return result
     
-    # Read first image to get dimensions
-    first_img = cv2.imread(str(image_files[0]))
-    if first_img is None:
-        result['error'] = "Could not read first image"
-        return result
-    
-    height, width = first_img.shape[:2]
-    
     # Calculate FPS from delay
     fps = 1000.0 / delay_ms
     
@@ -69,38 +63,63 @@ def create_video(
     if output_dir:
         video_path = Path(output_dir) / output_file
     else:
-        video_path = Path(input_dir) / output_file
+        video_path = Path(output_file)
     
     # Ensure output directory exists
     video_path.parent.mkdir(parents=True, exist_ok=True)
     
     # Ensure .mp4 extension
-    if not str(video_path).endswith('.mp4'):
+    if not str(video_path).lower().endswith('.mp4'):
         video_path = Path(str(video_path) + '.mp4')
     
     try:
-        # Create video writer
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        video = cv2.VideoWriter(str(video_path), fourcc, fps, (width, height))
+        # Read first image to determine target size
+        first_img = Image.open(image_files[0])
+        if first_img.mode == 'RGBA':
+            first_img = first_img.convert('RGB')
+        target_size = first_img.size  # (width, height)
         
-        # Write frames
-        frame_count = 0
+        # Collect all frames
+        frames = []
         for img_path in image_files:
-            img = cv2.imread(str(img_path))
-            if img is not None:
-                # Resize if needed to match first image
-                if img.shape[:2] != (height, width):
-                    img = cv2.resize(img, (width, height))
-                video.write(img)
-                frame_count += 1
+            try:
+                img = Image.open(img_path)
+                
+                # Convert to RGB if needed (remove alpha channel)
+                if img.mode == 'RGBA':
+                    # Create white background
+                    background = Image.new('RGB', img.size, (255, 255, 255))
+                    background.paste(img, mask=img.split()[3])
+                    img = background
+                elif img.mode != 'RGB':
+                    img = img.convert('RGB')
+                
+                # Resize to match first image if needed
+                if img.size != target_size:
+                    img = img.resize(target_size, Image.Resampling.LANCZOS)
+                
+                frames.append(np.array(img))
+            except Exception:
+                continue
         
-        video.release()
+        if not frames:
+            result['error'] = "Could not read any images"
+            return result
+        
+        # Write video using imageio with ffmpeg backend
+        iio.imwrite(
+            str(video_path),
+            frames,
+            fps=fps,
+            codec='libx264',
+            plugin='pyav'
+        )
         
         result['success'] = True
         result['path'] = str(video_path)
-        result['frames'] = frame_count
+        result['frames'] = len(frames)
         result['fps'] = fps
-        result['duration_sec'] = frame_count * delay_ms / 1000
+        result['duration_sec'] = len(frames) * delay_ms / 1000
         
     except Exception as e:
         result['error'] = str(e)
