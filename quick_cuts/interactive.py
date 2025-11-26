@@ -48,10 +48,11 @@ def print_menu():
     """Print main menu options."""
     print("  [1] Fetch images from web")
     print("  [2] Align images")
-    print("  [3] Clear input folder")
-    print("  [4] Clear output folder")
-    print("  [5] Clear attributions")
-    print("  [6] Exit")
+    print("  [3] Create video from output")
+    print("  [4] Clear input folder")
+    print("  [5] Clear output folder")
+    print("  [6] Clear attributions")
+    print("  [7] Exit")
     print()
 
 
@@ -227,6 +228,104 @@ def clear_attributions_interactive():
     # No prompt needed, will refresh on next menu display
 
 
+def create_video_interactive():
+    """Create video from output images."""
+    clear_screen()
+    print_header()
+    print("  CREATE VIDEO")
+    print("  " + "-" * 30)
+    print()
+    
+    # Check output folder
+    output_count = get_image_count("output")
+    if output_count == 0:
+        print("  Error: No images in output folder.")
+        print("  Use option [2] to align images first.")
+        input("\n  Press Enter to continue...")
+        return
+    
+    print(f"  Found {output_count} images in output/")
+    print()
+    
+    # Get delay
+    delay_input = input("  Delay between frames in ms [100]: ").strip()
+    try:
+        delay_ms = int(delay_input) if delay_input else 100
+        if delay_ms < 10 or delay_ms > 5000:
+            print("\n  Error: Delay must be between 10 and 5000 ms.")
+            input("\n  Press Enter to continue...")
+            return
+    except ValueError:
+        print("\n  Error: Invalid number.")
+        input("\n  Press Enter to continue...")
+        return
+    
+    # Get output filename
+    filename_input = input("  Output filename [output.mp4]: ").strip()
+    filename = filename_input if filename_input else "output.mp4"
+    if not filename.endswith('.mp4'):
+        filename += '.mp4'
+    
+    print()
+    print("  Creating video...")
+    print()
+    
+    try:
+        import cv2
+        
+        # Collect and sort output images
+        extensions = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff'}
+        image_files = sorted([f for f in Path("output").iterdir() 
+                              if f.is_file() and f.suffix.lower() in extensions])
+        
+        if not image_files:
+            print("  Error: No valid images found.")
+            input("\n  Press Enter to continue...")
+            return
+        
+        # Read first image to get dimensions
+        first_img = cv2.imread(str(image_files[0]))
+        if first_img is None:
+            print("  Error: Could not read first image.")
+            input("\n  Press Enter to continue...")
+            return
+        
+        height, width = first_img.shape[:2]
+        
+        # Calculate FPS from delay (delay in ms -> fps)
+        fps = 1000.0 / delay_ms
+        
+        # Create video writer
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        video_path = Path("output") / filename
+        video = cv2.VideoWriter(str(video_path), fourcc, fps, (width, height))
+        
+        # Write frames
+        for img_path in image_files:
+            img = cv2.imread(str(img_path))
+            if img is not None:
+                # Resize if needed to match first image
+                if img.shape[:2] != (height, width):
+                    img = cv2.resize(img, (width, height))
+                video.write(img)
+        
+        video.release()
+        
+        print("  " + "-" * 30)
+        print(f"  Video created: output/{filename}")
+        print(f"  Frames: {len(image_files)}")
+        print(f"  FPS: {fps:.1f} ({delay_ms}ms delay)")
+        print(f"  Duration: {len(image_files) * delay_ms / 1000:.1f}s")
+        
+    except ImportError:
+        print("  Error: OpenCV not installed.")
+        print("  Run: pip install opencv-python")
+    except Exception as e:
+        print(f"  Error: {e}")
+    
+    input("\n  Press Enter to continue...")
+
+
 def main():
     """Main interactive loop."""
     while True:
@@ -242,12 +341,14 @@ def main():
         elif choice == '2':
             align_images_interactive()
         elif choice == '3':
-            clear_input_interactive()
+            create_video_interactive()
         elif choice == '4':
-            clear_output_interactive()
+            clear_input_interactive()
         elif choice == '5':
-            clear_attributions_interactive()
+            clear_output_interactive()
         elif choice == '6':
+            clear_attributions_interactive()
+        elif choice == '7':
             clear_screen()
             print("\n  Goodbye.\n")
             sys.exit(0)

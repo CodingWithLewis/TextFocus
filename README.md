@@ -34,10 +34,11 @@ quick-cuts
 
   [1] Fetch images from web
   [2] Align images
-  [3] Clear input folder
-  [4] Clear output folder
-  [5] Clear attributions
-  [6] Exit
+  [3] Create video from output
+  [4] Clear input folder
+  [5] Clear output folder
+  [6] Clear attributions
+  [7] Exit
 ```
 
 ### Command Line
