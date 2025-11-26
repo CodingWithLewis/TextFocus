@@ -92,7 +92,7 @@ def fetch_images_interactive():
     print()
     
     # Fetch images
-    saved = fetch_images(query, limit=count, output_dir="input")
+    saved, _ = fetch_images(query, limit=count, output_dir="input")
     
     print()
     if saved:

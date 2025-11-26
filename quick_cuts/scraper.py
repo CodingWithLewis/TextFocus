@@ -143,16 +143,17 @@ def aggregate_content(query: str, limit: int = 10, sources: Optional[Iterable[st
     return deduped
 
 
-def _get_bing_image_urls(query: str, limit: int) -> List[str]:
-    """Fetch image URLs from Bing image search."""
+def _get_bing_image_urls(query: str, limit: int, offset: int = 0, exclude_urls: set = None) -> List[str]:
+    """Fetch image URLs from Bing image search with pagination."""
     urls = []
+    exclude_urls = exclude_urls or set()
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
     
     try:
-        # Request more than needed to account for failures
-        search_url = f"https://www.bing.com/images/async?q={urllib.parse.quote(query)}&first=0&count={limit * 2}"
+        # Request more than needed to account for failures and exclusions
+        search_url = f"https://www.bing.com/images/async?q={urllib.parse.quote(query)}&first={offset}&count={limit * 3}"
         resp = requests.get(search_url, headers=headers, timeout=10)
         resp.raise_for_status()
         
@@ -162,7 +163,7 @@ def _get_bing_image_urls(query: str, limit: int) -> List[str]:
         matches = re.findall(pattern, resp.text)
         
         for url in matches:
-            if url not in urls:
+            if url not in urls and url not in exclude_urls:
                 urls.append(url)
             if len(urls) >= limit * 2:
                 break
@@ -201,7 +202,15 @@ def _download_image(url: str, filepath: Path, timeout: int = 10) -> bool:
         return False
 
 
-def fetch_images(query: str, limit: int = 10, output_dir: str = "input", logger=None) -> List[str]:
+def fetch_images(
+    query: str, 
+    limit: int = 10, 
+    output_dir: str = "input", 
+    logger=None,
+    offset: int = 0,
+    exclude_urls: set = None,
+    filename_start: int = 1
+) -> tuple:
     """
     Download images related to a search query using Bing image search.
     
@@ -210,9 +219,12 @@ def fetch_images(query: str, limit: int = 10, output_dir: str = "input", logger=
         limit: Max number of images to download
         output_dir: Directory to save images (default: input/)
         logger: Optional logger
+        offset: Pagination offset for Bing search
+        exclude_urls: Set of URLs to skip (already downloaded)
+        filename_start: Starting number for filenames
         
     Returns:
-        List of saved file paths
+        Tuple of (saved_files list, downloaded_urls set)
     """
     import json
     
@@ -224,17 +236,20 @@ def fetch_images(query: str, limit: int = 10, output_dir: str = "input", logger=
     
     saved_files = []
     url_mapping = {}  # Exact mapping: filename -> source URL
+    downloaded_urls = set()
+    exclude_urls = exclude_urls or set()
     
-    # Get image URLs from Bing
-    urls = _get_bing_image_urls(query, limit)
+    # Get image URLs from Bing with pagination
+    urls = _get_bing_image_urls(query, limit, offset=offset, exclude_urls=exclude_urls)
     
     if not urls:
         if logger:
             logger.warning("No image URLs found")
-        return saved_files
+        return saved_files, downloaded_urls
     
     # Download images one by one, tracking exact URL->filename mapping
     count = 0
+    file_num = filename_start
     for url in urls:
         if count >= limit:
             break
@@ -249,13 +264,15 @@ def fetch_images(query: str, limit: int = 10, output_dir: str = "input", logger=
         elif '.webp' in url_lower:
             ext = '.webp'
         
-        filename = f"{safe_query}_{count + 1:02d}{ext}"
+        filename = f"{safe_query}_{file_num:02d}{ext}"
         filepath = output_path / filename
         
         if _download_image(url, filepath):
             saved_files.append(str(filepath))
             url_mapping[filename] = url
+            downloaded_urls.add(url)
             count += 1
+            file_num += 1
     
     # Save copyright attributions with correct mapping
     if url_mapping:
@@ -263,7 +280,17 @@ def fetch_images(query: str, limit: int = 10, output_dir: str = "input", logger=
         attr_dir.mkdir(parents=True, exist_ok=True)
         attr_file = attr_dir / f"{safe_query}.json"
         
+        # Merge with existing attributions
+        existing = {}
+        if attr_file.exists():
+            try:
+                with open(attr_file, 'r') as f:
+                    existing = json.load(f)
+            except:
+                pass
+        existing.update(url_mapping)
+        
         with open(attr_file, 'w') as f:
-            json.dump(url_mapping, f, indent=2)
+            json.dump(existing, f, indent=2)
     
-    return saved_files
+    return saved_files, downloaded_urls

@@ -4,6 +4,7 @@ Agent mode - Automated workflow to collect a target number of aligned images.
 
 import os
 import shutil
+import logging
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -48,6 +49,9 @@ def run_agent(
         dict with keys: success, total_aligned, total_fetched, batches, error
     """
     
+    # Suppress aligner logging
+    logging.getLogger('quick_cuts.aligner').setLevel(logging.WARNING)
+    
     def log(msg: str):
         if progress_callback:
             progress_callback(msg)
@@ -65,8 +69,9 @@ def run_agent(
     Path("output").mkdir(exist_ok=True)
     
     # Clear input folder for fresh start
+    extensions = {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff'}
     for f in Path("input").iterdir():
-        if f.is_file() and f.suffix.lower() in {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff'}:
+        if f.is_file() and f.suffix.lower() in extensions:
             f.unlink()
     
     # Create aligner
@@ -78,74 +83,95 @@ def run_agent(
         background=background
     )
     
-    total_aligned = get_image_count("output")
+    # Track state
+    all_downloaded_urls = set()
+    search_offset = 0
+    input_file_counter = 1
     total_fetched = 0
     batch_num = 0
-    max_batches = 20  # Safety limit
+    max_batches = 50  # Safety limit
+    no_new_images_count = 0
     
+    # Count existing aligned images
+    initial_aligned = get_image_count("output")
     log(f"Target: {target_count} aligned images for '{keyword}'")
-    log(f"Starting with {total_aligned} existing images in output/")
+    log(f"Starting with {initial_aligned} existing images in output/")
     
-    while total_aligned < target_count and batch_num < max_batches:
+    while get_image_count("output") < target_count and batch_num < max_batches:
         batch_num += 1
-        log(f"\nBatch {batch_num}: Fetching {batch_size} images...")
+        current_aligned = get_image_count("output")
+        
+        log(f"\nBatch {batch_num}: Fetching images (offset {search_offset})...")
         
         # Clear input for this batch
         for f in Path("input").iterdir():
-            if f.is_file() and f.suffix.lower() in {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff'}:
+            if f.is_file() and f.suffix.lower() in extensions:
                 f.unlink()
         
-        # Fetch images
-        fetched = fetch_images(keyword, limit=batch_size, output_dir="input")
-        fetched_count = len(fetched)
+        # Fetch images with pagination and exclusion
+        fetched_files, new_urls = fetch_images(
+            keyword, 
+            limit=batch_size, 
+            output_dir="input",
+            offset=search_offset,
+            exclude_urls=all_downloaded_urls,
+            filename_start=input_file_counter
+        )
+        
+        fetched_count = len(fetched_files)
         total_fetched += fetched_count
+        all_downloaded_urls.update(new_urls)
+        input_file_counter += fetched_count
+        
+        # Increment offset for next batch
+        search_offset += batch_size
         
         if fetched_count == 0:
-            log("No images fetched, stopping.")
-            break
+            no_new_images_count += 1
+            log(f"No new images found (attempt {no_new_images_count}/3)")
+            if no_new_images_count >= 3:
+                log("No more images available, stopping.")
+                break
+            continue
+        else:
+            no_new_images_count = 0
         
-        log(f"Fetched {fetched_count} images")
+        log(f"Fetched {fetched_count} new images")
         
         # Get input image paths
-        extensions = {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff'}
         image_paths = [str(f) for f in Path("input").iterdir() 
                        if f.is_file() and f.suffix.lower() in extensions]
         
         # Align images
-        log(f"Aligning images...")
-        before_align = get_image_count("output")
+        log(f"Aligning...")
         
         try:
             results = aligner.process_images(image_paths, Path("output"))
             successful = sum(1 for success, _, _ in results if success)
-            log(f"Aligned {successful} out of {len(image_paths)} images")
+            log(f"Aligned {successful}/{len(image_paths)} images")
         except Exception as e:
             log(f"Alignment error: {e}")
             successful = 0
         
-        total_aligned = get_image_count("output")
-        log(f"Total aligned: {total_aligned}/{target_count}")
-        
-        # Check if we're making progress
-        if successful == 0 and batch_num > 3:
-            log("No successful alignments in recent batches, stopping.")
-            break
+        new_aligned = get_image_count("output")
+        log(f"Progress: {new_aligned}/{target_count}")
     
     # Clean up input folder
     for f in Path("input").iterdir():
-        if f.is_file() and f.suffix.lower() in {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff'}:
+        if f.is_file() and f.suffix.lower() in extensions:
             f.unlink()
     
-    result['total_aligned'] = total_aligned
+    final_aligned = get_image_count("output")
+    result['total_aligned'] = final_aligned
     result['total_fetched'] = total_fetched
     result['batches'] = batch_num
-    result['success'] = total_aligned >= target_count
+    result['success'] = final_aligned >= target_count
     
-    if total_aligned >= target_count:
-        log(f"\nComplete! {total_aligned} aligned images ready.")
+    if final_aligned >= target_count:
+        log(f"\nComplete! {final_aligned} aligned images ready.")
     else:
-        log(f"\nStopped at {total_aligned} aligned images (target: {target_count})")
-        if total_aligned < target_count:
-            result['error'] = f"Only found {total_aligned} matching images"
+        log(f"\nStopped at {final_aligned} aligned images (target: {target_count})")
+        if final_aligned < target_count:
+            result['error'] = f"Only found {final_aligned} matching images"
     
     return result

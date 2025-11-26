@@ -147,7 +147,7 @@ def cmd_fetch(args):
     print(f"Fetching {limit} images for '{query}'...")
     
     try:
-        saved_files = fetch_images(query, limit=limit, output_dir=output_dir)
+        saved_files, _ = fetch_images(query, limit=limit, output_dir=output_dir)
         
         if not saved_files:
             print("No images found or downloaded.")
