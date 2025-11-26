@@ -14,9 +14,10 @@ aligned_*/
 input/*
 output/*
 test_output/
-copyright_attributions/
+copyright_attributions/*
 !input/.gitkeep
 !output/.gitkeep
+!copyright_attributions/.gitkeep
 
 # OS files
 .DS_Store
