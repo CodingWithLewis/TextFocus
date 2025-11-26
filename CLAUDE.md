@@ -1,67 +1,102 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for AI agents (Claude Code, Cursor, etc.) working with this repository.
 
 ## Project Overview
 
-Quick Cuts is a Python tool that automatically aligns and centers specific words in images using OCR (Optical Character Recognition). It's designed for creating documentary-style video effects where words need to be consistently positioned across multiple frames.
+Quick Cuts is a Python CLI tool that uses OCR to find specific words in images and creates new images with the word perfectly centered. Used for documentary-style video editing effects.
+
+## Project Structure
+
+```
+quick-cuts/
+├── quick_cuts/           # Main package
+│   ├── __init__.py       # Package exports
+│   ├── aligner.py        # Core ImageWordAligner class
+│   ├── cli.py            # Command-line interface
+│   └── scraper.py        # Web content aggregator (optional feature)
+├── assets/               # Static assets (images, gifs for docs)
+├── samples/              # Sample images for testing
+├── install.sh            # One-command installer
+├── pyproject.toml        # Package configuration
+├── README.md             # User documentation
+└── CLAUDE.md             # This file
+```
 
 ## Key Commands
 
-### Running the Tool
 ```bash
-# Basic usage - align word in images
-python quick_cuts.py images/*.png -w "word"
+# Install (handles Tesseract + Python deps)
+./install.sh
 
-# Process entire directory with partial matching
-python quick_cuts.py images/ -w "word" --partial
+# Run the tool
+quick-cuts images/ -w "word" --partial
 
-# Custom output size and word height
-python quick_cuts.py images/ -w "word" -s 1920x1080 --word-height 100
-```
-
-### Installation
-```bash
-# Install dependencies (requires Python 3.8+ and Tesseract OCR)
-pip install -r requirements.txt
-# or with uv:
-uv pip install -r requirements.txt
+# Or run directly
+python -m quick_cuts.cli images/ -w "word"
 ```
 
 ## Architecture
 
-The codebase consists of a single main module `quick_cuts.py` with the following structure:
+### `aligner.py` - Core Processing
 
-- **ImageWordAligner class**: Core processing logic
-  - `find_word_in_image()`: Uses Tesseract OCR to locate target words with bounding boxes
-  - `create_aligned_image()`: Centers detected words and scales them to consistent size
-  - `get_dominant_color()`: Extracts dominant color using K-means clustering for background
-  - `process_images()`: Parallel processing coordinator using multiprocessing Pool
+- `ImageWordAligner` class: Main processing engine
+  - `find_word_in_image()` - Uses Tesseract OCR to locate target words
+  - `create_aligned_image()` - Centers detected word, scales to consistent size
+  - `get_dominant_color()` - K-means clustering for background color extraction
+  - `process_images()` - Batch processing with progress callbacks
 
-- **Processing Pipeline**:
-  1. OCR detection with preprocessing (bilateral filter, OTSU thresholding)
-  2. Word matching (exact or partial via `--partial` flag)
-  3. Image transformation (scaling and centering)
-  4. Background handling (white, black, transparent, or dominant color)
-  5. Parallel batch processing for performance
+### `cli.py` - Command Line Interface
 
-## Important Technical Details
+- Argument parsing with argparse
+- `collect_image_paths()` - Handles files, directories, glob patterns
+- Entry point: `main()`
 
-- **OCR Configuration**: Uses pytesseract with confidence threshold of 30
-- **Image Formats**: Supports jpg, jpeg, png, bmp, tiff
-- **Unicode Handling**: Special handling for Unicode filenames using `cv2.imdecode()` and `numpy.fromfile()`
-- **Parallel Processing**: Uses multiprocessing.Pool with configurable worker count
-- **Background Options**: dominant (K-means), white, black, or transparent (outputs as PNG)
-- **Partial Matching**: When enabled, matches beginning of words and estimates target word width proportionally
+### `scraper.py` - Web Aggregator (Optional)
+
+- Fetches news/articles from Google News, Bing News, Hacker News
+- `aggregate_content()` - Main function for fetching related content
+
+## Technical Details
+
+- **OCR**: pytesseract with preprocessing (bilateral filter, OTSU thresholding)
+- **Confidence threshold**: 30 (configurable in code)
+- **Image formats**: jpg, jpeg, png, bmp, tiff, webp
+- **Unicode paths**: Handled via `cv2.imdecode()` + `numpy.fromfile()`
+- **Background options**: white, black, dominant (K-means), transparent (PNG)
 
 ## Dependencies
 
-- opencv-python >= 4.8.0 (image processing)
-- pytesseract >= 0.3.10 (OCR interface)
-- numpy >= 1.26.0 (array operations)
-- Pillow >= 10.0.0 (image handling)
-- scikit-learn >= 1.3.0 (K-means clustering for dominant color)
+Core:
+- opencv-python (image processing)
+- pytesseract (OCR interface)
+- numpy (array operations)
+- scikit-learn (K-means for dominant color)
 
-## External Requirements
+Optional (for scraper):
+- requests, feedparser
 
-Tesseract OCR must be installed separately on the system before using this tool.
+System:
+- Tesseract OCR must be installed (`brew install tesseract` or `apt install tesseract-ocr`)
+
+## Common Tasks
+
+### Adding a new CLI option
+
+Edit `cli.py`:
+1. Add argument to `parser.add_argument()`
+2. Pass to `ImageWordAligner` constructor
+3. Handle in `aligner.py` if needed
+
+### Modifying OCR behavior
+
+Edit `aligner.py`:
+- `find_word_in_image()` for detection logic
+- Confidence threshold is hardcoded as `30`
+- Preprocessing pipeline: grayscale → bilateral filter → OTSU threshold
+
+### Testing changes
+
+```bash
+quick-cuts samples/ -w "cookie" --partial -o test_output
+```
