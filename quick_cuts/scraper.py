@@ -143,33 +143,121 @@ def aggregate_content(query: str, limit: int = 10, sources: Optional[Iterable[st
     return deduped
 
 
-def _get_bing_image_urls(query: str, limit: int, offset: int = 0, exclude_urls: set = None) -> List[str]:
-    """Fetch image URLs from Bing image search with pagination."""
+def _get_duckduckgo_image_urls(query: str, limit: int, offset: int = 0, exclude_urls: set = None) -> List[str]:
+    """Fetch image URLs from DuckDuckGo Images with pagination."""
     urls = []
     exclude_urls = exclude_urls or set()
+    
+    # Use session with proper headers (required by DDG)
+    session = requests.Session()
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://duckduckgo.com/',
     }
     
     try:
-        # Request more than needed to account for failures and exclusions
-        search_url = f"https://www.bing.com/images/async?q={urllib.parse.quote(query)}&first={offset}&count={limit * 3}"
-        resp = requests.get(search_url, headers=headers, timeout=10)
+        # First get the vqd token
+        token_url = f"https://duckduckgo.com/?q={urllib.parse.quote(query)}&iar=images&iax=images&ia=images"
+        resp = session.get(token_url, headers=headers, timeout=10)
+        
+        # Extract vqd token
+        vqd_match = re.search(r'vqd[=:]["\']?([a-zA-Z0-9_-]+)', resp.text)
+        if not vqd_match:
+            return urls
+            
+        vqd = vqd_match.group(1)
+        
+        # Fetch images with pagination (s = offset)
+        api_url = f"https://duckduckgo.com/i.js?l=us-en&o=json&q={urllib.parse.quote(query)}&vqd={vqd}&f=,,,,,&p=1&s={offset}"
+        resp = session.get(api_url, headers=headers, timeout=10)
+        
+        if resp.status_code == 200:
+            try:
+                data = resp.json()
+                results = data.get('results', [])
+                for item in results:
+                    img_url = item.get('image', '')
+                    if img_url and img_url not in exclude_urls and img_url not in urls:
+                        urls.append(img_url)
+                        if len(urls) >= limit * 2:
+                            break
+            except:
+                pass
+                
+    except Exception:
+        pass
+    
+    return urls
+
+
+def _get_google_image_urls(query: str, limit: int, offset: int = 0, exclude_urls: set = None) -> List[str]:
+    """Fetch image URLs from Google Images with pagination."""
+    urls = []
+    exclude_urls = exclude_urls or set()
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+    }
+    
+    try:
+        # Google Images search with pagination (start parameter)
+        search_url = f"https://www.google.com/search?q={urllib.parse.quote(query)}&tbm=isch&start={offset}"
+        resp = requests.get(search_url, headers=headers, timeout=15)
         resp.raise_for_status()
         
-        # Extract image URLs from response using regex
-        # Bing returns URLs in murl="..." format
-        pattern = r'murl&quot;:&quot;(https?://[^&]+?)&quot;'
-        matches = re.findall(pattern, resp.text)
+        # Google embeds image URLs in various formats in the page
+        # Pattern 1: Direct image URLs in data attributes
+        patterns = [
+            r'\["(https?://[^"]+\.(?:jpg|jpeg|png|webp|gif))',  # Array format
+            r'"ou":"(https?://[^"]+)"',  # Original URL format
+            r'imgurl=(https?://[^&"]+)',  # URL parameter format
+        ]
         
-        for url in matches:
-            if url not in urls and url not in exclude_urls:
-                urls.append(url)
+        all_matches = []
+        for pattern in patterns:
+            matches = re.findall(pattern, resp.text, re.IGNORECASE)
+            all_matches.extend(matches)
+        
+        # Filter and dedupe
+        seen = set()
+        for url in all_matches:
+            # Skip Google's own URLs and tiny thumbnails
+            if 'google.com' in url or 'gstatic.com' in url:
+                continue
+            if 'encrypted-tbn' in url:
+                continue
+            if url in seen or url in exclude_urls:
+                continue
+            
+            # Unescape URL
+            url = url.replace('\\u003d', '=').replace('\\u0026', '&')
+            
+            seen.add(url)
+            urls.append(url)
+            
             if len(urls) >= limit * 2:
                 break
                 
     except Exception:
         pass
+    
+    return urls
+
+
+def _get_image_urls(query: str, limit: int, offset: int = 0, exclude_urls: set = None) -> List[str]:
+    """Fetch image URLs from multiple sources."""
+    exclude_urls = exclude_urls or set()
+    
+    # Use DuckDuckGo as primary (better pagination support)
+    urls = _get_duckduckgo_image_urls(query, limit, offset=offset, exclude_urls=exclude_urls)
+    
+    # Fallback to Google if DDG doesn't return enough
+    if len(urls) < limit:
+        google_urls = _get_google_image_urls(query, limit - len(urls), offset=offset, exclude_urls=exclude_urls | set(urls))
+        urls.extend(google_urls)
     
     return urls
 
@@ -239,8 +327,8 @@ def fetch_images(
     downloaded_urls = set()
     exclude_urls = exclude_urls or set()
     
-    # Get image URLs from Bing with pagination
-    urls = _get_bing_image_urls(query, limit, offset=offset, exclude_urls=exclude_urls)
+    # Get image URLs from multiple sources
+    urls = _get_image_urls(query, limit, offset=offset, exclude_urls=exclude_urls)
     
     if not urls:
         if logger:
