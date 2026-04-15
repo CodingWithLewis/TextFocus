@@ -48,3 +48,9 @@ temp/
 tmp/
 
 node_modules/
+
+# Python packaging artifacts
+*.egg-info/
+build/
+dist/
+*.whl

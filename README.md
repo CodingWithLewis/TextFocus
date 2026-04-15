@@ -25,23 +25,34 @@ Perfect for creating that "busy" effect in documentary-style videos.
    - **Mac**: `brew install tesseract`
    - **Linux**: `sudo apt-get install tesseract-ocr`
 
-### Using uv (Recommended)
+### Install as a CLI (recommended)
+
+```bash
+git clone https://github.com/CodingWithLewis/TextFocus.git
+cd TextFocus
+uv tool install .
+quick-cuts --help
+```
+
+This installs `quick-cuts` as a globally-available command in an isolated venv managed by uv. Tesseract OCR must still be installed system-wide (see Prerequisites above). If the command is not on your PATH after install, run `uv tool update-shell` once.
+
+### Using uv (for development)
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/quick-cuts.git
-cd quick-cuts
+git clone https://github.com/CodingWithLewis/TextFocus.git
+cd TextFocus
 
 # Install dependencies with uv
 uv pip install -r requirements.txt
 ```
 
-### Using pip
+### Using pip (for development)
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/quick-cuts.git
-cd quick-cuts
+git clone https://github.com/CodingWithLewis/TextFocus.git
+cd TextFocus
 
 # Install dependencies
 pip install -r requirements.txt
