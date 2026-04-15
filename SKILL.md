@@ -77,6 +77,7 @@ Transparent background forces `.png` output regardless of input format.
 
 ## Working guidance for Claude
 
+
 When the user asks for a word-alignment task:
 
 1. **Confirm the target word and the input path** before running — mistakes here waste a batch.
@@ -87,16 +88,11 @@ When the user asks for a word-alignment task:
 6. **Progress / failures** are printed to stdout. Surface the "Failed to find word in:" list back to the user so they know which frames need manual attention.
 7. **If `quick-cuts` is not found**, the user hasn't installed it yet — point them at `uv tool install .` from this repo, not `python quick_cuts.py`.
 
-## Secondary capability: content scraping
-
-`backend_service.py` exposes a `scrape_content` JSON-IPC command (Google News RSS, Bing News RSS, Hacker News) for pulling articles related to a keyword. This is auxiliary — only use it if the user explicitly asks to fetch related articles, not as part of the image pipeline. See `README.md` for the JSON protocol.
-
 ## Files in this skill
 
 - `pyproject.toml` — defines the `quick-cuts` entry point
 - `quick_cuts.py` — source of the CLI (invoked via the installed `quick-cuts` command, not directly)
 - `requirements.txt` — dev-install dependency list (the CLI install uses `pyproject.toml` instead)
 - `README.md` — full user-facing docs
-- `examples.md` — worked examples (note: examples there still show `python quick_cuts.py` syntax; prefer `quick-cuts`)
-- `backend_service.py`, `quick_cuts_backend.py` — Electron-app IPC backend (not for CLI use)
-- `docs/example.gif`, `docs/example.mp4` — visual reference of the effect
+- `examples.md` — worked examples
+- `docs/example.gif` — visual reference of the effect
