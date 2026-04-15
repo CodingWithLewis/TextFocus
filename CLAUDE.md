@@ -11,21 +11,25 @@ Quick Cuts is a Python tool that automatically aligns and centers specific words
 ### Running the Tool
 ```bash
 # Basic usage - align word in images
-python quick_cuts.py images/*.png -w "word"
+quick-cuts images/*.png -w "word"
 
 # Process entire directory with partial matching
-python quick_cuts.py images/ -w "word" --partial
+quick-cuts images/ -w "word" --partial
 
 # Custom output size and word height
-python quick_cuts.py images/ -w "word" -s 1920x1080 --word-height 100
+quick-cuts images/ -w "word" -s 1920x1080 --word-height 100
 ```
 
 ### Installation
 ```bash
-# Install dependencies (requires Python 3.8+ and Tesseract OCR)
+# Requires Python 3.8+ and Tesseract OCR installed system-wide.
+
+# Install the CLI (recommended):
+uv tool install .
+quick-cuts --help
+
+# Or install deps for development:
 pip install -r requirements.txt
-# or with uv:
-uv pip install -r requirements.txt
 ```
 
 ## Architecture
