@@ -1,6 +1,6 @@
 ---
 name: textfocus
-description: Align and center a specific word across multiple images using OCR (Tesseract) to produce documentary-style "word focus" cuts. Use when the user wants to center/lock a keyword across screenshots or video frames, create news-ticker style alignment, produce same-word cuts for After Effects / Premiere, or batch-crop frames so a chosen word stays perfectly centered and same-size. Wraps the `quick_cuts.py` CLI in this repo.
+description: Align and center a specific word across multiple images using OCR (Tesseract) to produce documentary-style "word focus" cuts. Use when the user wants to center/lock a keyword across screenshots or video frames, create news-ticker style alignment, produce same-word cuts for After Effects / Premiere, or batch-crop frames so a chosen word stays perfectly centered and same-size. Invoked via the installed `quick-cuts` CLI.
 ---
 
 # TextFocus (Quick Cuts) Skill
@@ -22,25 +22,25 @@ If the user only wants generic image cropping (no OCR / no target word), this sk
 
 Before running anything, verify the environment:
 
-1. **Tesseract OCR must be installed on the system** (not just the Python package):
+1. **Tesseract OCR must be installed on the system** (Python-only install is not enough):
    - macOS: `brew install tesseract`
    - Linux: `sudo apt-get install tesseract-ocr`
    - Windows: installer from https://github.com/UB-Mannheim/tesseract/wiki
    - Check with: `tesseract --version`
 2. **Python 3.8+**
-3. **Python dependencies** (from `requirements.txt`):
+3. **The `quick-cuts` CLI itself** — install from this repo with uv:
    ```bash
-   pip install -r requirements.txt
-   # or
-   uv pip install -r requirements.txt
+   uv tool install .
+   quick-cuts --help
    ```
+   If `quick-cuts` is not on PATH after install, run `uv tool update-shell` once and reopen the shell.
 
 If Tesseract is missing, tell the user to install it — do not try to work around it.
 
-## Primary tool: `quick_cuts.py`
+## Primary tool: `quick-cuts`
 
 ```bash
-python quick_cuts.py <images> -w "<target_word>" [options]
+quick-cuts <images> -w "<target_word>" [options]
 ```
 
 `<images>` can be a glob (`images/*.png`), a directory (`images/`), or individual files.
@@ -61,16 +61,16 @@ python quick_cuts.py <images> -w "<target_word>" [options]
 
 ```bash
 # Basic — center "breaking" across PNGs
-python quick_cuts.py images/*.png -w "breaking"
+quick-cuts images/*.png -w "breaking"
 
 # Partial match — useful when the target is a prefix of a longer word
-python quick_cuts.py images/ -w "warp" --partial
+quick-cuts images/ -w "warp" --partial
 
 # 4K output with larger word
-python quick_cuts.py images/ -w "alert" -s 3840x2160 --word-height 200
+quick-cuts images/ -w "alert" -s 3840x2160 --word-height 200
 
 # Vertical / social-media format, transparent background
-python quick_cuts.py frames/ -w "viral" -s 1080x1920 --background transparent
+quick-cuts frames/ -w "viral" -s 1080x1920 --background transparent
 ```
 
 Transparent background forces `.png` output regardless of input format.
@@ -85,6 +85,7 @@ When the user asks for a word-alignment task:
 4. **If OCR misses**, suggest in order: `--partial`, higher-resolution source images, better contrast. Do not silently change the target word.
 5. **Output files** are named `aligned_<original>` in the output dir. Tell the user where they landed (`output_dir.absolute()` is logged).
 6. **Progress / failures** are printed to stdout. Surface the "Failed to find word in:" list back to the user so they know which frames need manual attention.
+7. **If `quick-cuts` is not found**, the user hasn't installed it yet — point them at `uv tool install .` from this repo, not `python quick_cuts.py`.
 
 ## Secondary capability: content scraping
 
@@ -92,9 +93,10 @@ When the user asks for a word-alignment task:
 
 ## Files in this skill
 
-- `quick_cuts.py` — main CLI (use this)
-- `requirements.txt` — Python deps
+- `pyproject.toml` — defines the `quick-cuts` entry point
+- `quick_cuts.py` — source of the CLI (invoked via the installed `quick-cuts` command, not directly)
+- `requirements.txt` — dev-install dependency list (the CLI install uses `pyproject.toml` instead)
 - `README.md` — full user-facing docs
-- `examples.md` — worked examples
+- `examples.md` — worked examples (note: examples there still show `python quick_cuts.py` syntax; prefer `quick-cuts`)
 - `backend_service.py`, `quick_cuts_backend.py` — Electron-app IPC backend (not for CLI use)
 - `docs/example.gif`, `docs/example.mp4` — visual reference of the effect
